@@ -26,6 +26,17 @@ except locale.Error:
     pass
 
 class StockCLI:
+    # Constants at class level
+    DEFAULT_PERIOD = "2d"
+    DEFAULT_CHART_PERIOD = "1mo"
+    DEFAULT_CHART_TYPE = "line"
+    
+    # Number formatting constants
+    TRILLION = 1e12
+    BILLION = 1e9
+    MILLION = 1e6
+    THOUSAND = 1e3
+
     def __init__(self):
         self.colors = {
             'green': '\033[92m',
@@ -165,14 +176,14 @@ class StockCLI:
     
     def format_large_number(self, value: float) -> str:
         """Format large numbers with appropriate suffixes"""
-        if value >= 1e12:
-            return f"${value/1e12:.2f}T"
-        elif value >= 1e9:
-            return f"${value/1e9:.2f}B"
-        elif value >= 1e6:
-            return f"${value/1e6:.2f}M"
-        elif value >= 1e3:
-            return f"${value/1e3:.2f}K"
+        if value >= self.TRILLION:
+            return f"${value/self.TRILLION:.2f}T"
+        elif value >= self.BILLION:
+            return f"${value/self.BILLION:.2f}B"
+        elif value >= self.MILLION:
+            return f"${value/self.MILLION:.2f}M"
+        elif value >= self.THOUSAND:
+            return f"${value/self.THOUSAND:.2f}K"
         else:
             return f"${value:,.2f}"
     
@@ -351,11 +362,12 @@ class StockCLI:
         print(f"{self.colorize('Change:', 'bold')} {self.colorize(change_text, price_color)}")
         print(f"{self.colorize('Previous Close:', 'bold')} {self.format_currency(data['previous_close'])}")
         
-        # Basic trading info
-        print(f"\n{self.colorize('Trading Info:', 'bold')}")
-        print(f"  High: {self.format_currency(data['high'])}")
-        print(f"  Low: {self.format_currency(data['low'])}")
-        print(f"  Volume: {data['volume']:,}")
+        # Basic trading info (only show in detailed mode)
+        if detailed:
+            print(f"\n{self.colorize('Trading Info:', 'bold')}")
+            print(f"  High: {self.format_currency(data['high'])}")
+            print(f"  Low: {self.format_currency(data['low'])}")
+            print(f"  Volume: {data['volume']:,}")
         
         # Display additional information based on options
         if detailed or specific_fields or show_all:
@@ -367,14 +379,14 @@ class StockCLI:
                 self._display_specific_fields(data, specific_fields)
             else:
                 # Display traditional detailed info (backward compatibility)
-                self._display_traditional_detailed(data)
+                self._display_detailed_info(data)
         
         # Timestamp
         print(f"\n{self.colorize('Last Updated:', 'bold')} {data['timestamp']}")
         print(f"{self.colorize('=' * 60, 'bold')}\n")
     
-    def _display_traditional_detailed(self, data: Dict[str, Any]):
-        """Display traditional detailed information (backward compatibility)"""
+    def _display_detailed_info(self, data: Dict[str, Any]):
+        """Display comprehensive detailed information"""
         print(f"\n{self.colorize('Additional Info:', 'bold')}")
         if 'marketCap' in data:
             print(f"  Market Cap: {self.format_large_number(data['marketCap'])}")
@@ -490,8 +502,7 @@ Examples:
             del json_data['timestamp']
             print(json.dumps(json_data, indent=2))
         else:
-            self.display_stock_info(data, parsed_args.detailed, 
-                                  parsed_args.fields, parsed_args.all)
+            self.display_stock_info(data, parsed_args.detailed, parsed_args.fields, parsed_args.all)
     
     def _list_available_fields(self):
         """List all available fields organized by category"""

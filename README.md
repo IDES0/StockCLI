@@ -10,6 +10,13 @@ A simple terminal application to check real-time stock prices, view historical c
 - JSON output for scripting
 - Custom field selection and full metrics display
 
+## Quick Install
+```bash
+curl -sSL https://raw.githubusercontent.com/IDES0/StockCLI/main/install.sh | bash
+```
+
+This gives users the fastest way to get started with just one command!
+
 ## Installation
 
 1. Clone the repository:
@@ -21,6 +28,24 @@ A simple terminal application to check real-time stock prices, view historical c
    ```sh
    ./install.sh
    ```
+
+### Installation Modes
+
+The install script offers two installation modes:
+
+#### 🚀 Development Mode (Default)
+- **Live updates**: Changes to source code are immediately available
+- **No reinstallation needed**: Just `git pull` to get updates
+- **Symlink setup**: Direct access to source files
+- **Perfect for**: Users who want to stay up-to-date with latest features
+
+#### 📦 Production Mode
+- **Standard installation**: Traditional package installation
+- **Requires reinstall**: Run `git pull && pip3 install .` for updates
+- **Independent**: Works even if source directory is moved/deleted
+- **Perfect for**: Users who prefer traditional package management
+
+The script will prompt you to choose between these modes during installation.
 
 ## Usage
 
