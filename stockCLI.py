@@ -47,6 +47,16 @@ class StockCLI:
             'reset': '\033[0m'
         }
         
+        # Define portfolio holdings
+        self.portfolios = {
+            'alex': {
+                'NVDA': 88,
+                'SMCI': 90,
+                'SPY': 4,
+                'CASH': 278
+            }
+        }
+        
         # Define available fields organized by category
         self.field_categories = {
             "Basic Info": {
@@ -305,6 +315,73 @@ class StockCLI:
             print(f"Error fetching historical data for {symbol}: {str(e)}", file=sys.stderr)
             return None
     
+    def get_portfolio_data(self, portfolio_name: str) -> Optional[Dict[str, Any]]:
+        """Fetch portfolio data for a given portfolio name"""
+        if portfolio_name.lower() not in self.portfolios:
+            return None
+        
+        portfolio = self.portfolios[portfolio_name.lower()]
+        holdings_data = []
+        total_value = 0
+        total_change = 0
+        total_previous_value = 0
+        
+        # Fetch data for each holding
+        for symbol, shares in portfolio.items():
+            if symbol == 'CASH':
+                # Handle cash holdings
+                holdings_data.append({
+                    'symbol': symbol,
+                    'shares': shares,  # This represents the cash amount
+                    'current_price': 1.0,  # Cash is always worth $1
+                    'change': 0.0,  # Cash doesn't change in value
+                    'change_percent': 0.0,
+                    'value': shares,  # Cash value is the amount
+                    'change_value': 0.0,
+                    'previous_value': shares
+                })
+                
+                total_value += shares
+                total_previous_value += shares
+                continue
+            
+            stock_data = self.get_stock_data(symbol)
+            if stock_data:
+                holding_value = stock_data['current_price'] * shares
+                holding_change = stock_data['change'] * shares
+                holding_previous_value = stock_data['previous_close'] * shares
+                
+                holdings_data.append({
+                    'symbol': symbol,
+                    'shares': shares,
+                    'current_price': stock_data['current_price'],
+                    'change': stock_data['change'],
+                    'change_percent': stock_data['change_percent'],
+                    'value': holding_value,
+                    'change_value': holding_change,
+                    'previous_value': holding_previous_value
+                })
+                
+                total_value += holding_value
+                total_change += holding_change
+                total_previous_value += holding_previous_value
+        
+        if not holdings_data:
+            return None
+        
+        # Calculate portfolio totals
+        total_change_percent = (total_change / total_previous_value) * 100 if total_previous_value != 0 else 0
+        
+        return {
+            'portfolio_name': portfolio_name,
+            'holdings': holdings_data,
+            'total_value': total_value,
+            'total_change': total_change,
+            'total_change_percent': total_change_percent,
+            'total_previous_value': total_previous_value,
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+    
     def display_chart(self, symbol: str, period: str = "1mo", chart_type: str = "line"):
         """Display a chart of historical stock data"""
         if not PLOTEXT_AVAILABLE:
@@ -422,6 +499,60 @@ class StockCLI:
                 for display_name, formatted_value in category_data:
                     print(f"  {display_name}: {formatted_value}")
     
+    def display_portfolio_info(self, data: Dict[str, Any]):
+        """Display portfolio information in a formatted way"""
+        if not data:
+            print("No portfolio data available.")
+            return
+        
+        # Header
+        print(f"\n{self.colorize('=' * 60, 'bold')}")
+        portfolio_name = f"{data['portfolio_name'].title()}'s Portfolio"
+        print(f"{self.colorize(portfolio_name, 'bold')}")
+        print(f"{self.colorize('=' * 60, 'bold')}")
+        
+        # Portfolio totals
+        total_color = 'green' if data['total_change'] >= 0 else 'red'
+        change_symbol = '▲' if data['total_change'] >= 0 else '▼'
+        
+        print(f"\n{self.colorize('Portfolio Total:', 'bold')} {self.colorize(self.format_currency(data['total_value']), total_color)}")
+        change_text = f"{change_symbol} {self.format_currency(data['total_change'])} ({self.format_percentage(data['total_change_percent'])})"
+        print(f"{self.colorize('Total Change:', 'bold')} {self.colorize(change_text, total_color)}")
+        print(f"{self.colorize('Previous Total:', 'bold')} {self.format_currency(data['total_previous_value'])}")
+        
+        # Individual holdings
+        print(f"\n{self.colorize('Holdings:', 'bold')}")
+        print("-" * 60)
+        
+        for holding in data['holdings']:
+            symbol = holding['symbol']
+            shares = holding['shares']
+            current_price = holding['current_price']
+            change = holding['change']
+            change_percent = holding['change_percent']
+            value = holding['value']
+            change_value = holding['change_value']
+            
+            # Special handling for cash
+            if symbol == 'CASH':
+                print(f"\n{self.colorize(symbol, 'bold')} (${shares:,.2f})")
+                continue
+            
+            # Color for this holding
+            holding_color = 'green' if change >= 0 else 'red'
+            change_symbol_holding = '▲' if change >= 0 else '▼'
+            
+            print(f"\n{self.colorize(symbol, 'bold')} ({shares} shares)")
+            print(f"  Price: {self.colorize(self.format_currency(current_price), holding_color)}")
+            change_text_holding = f"{change_symbol_holding} {self.format_currency(change)} ({self.format_percentage(change_percent)})"
+            print(f"  Change: {self.colorize(change_text_holding, holding_color)}")
+            print(f"  Value: {self.format_currency(value)}")
+            print(f"  Value Change: {self.colorize(self.format_currency(change_value), holding_color)}")
+        
+        # Timestamp
+        print(f"\n{self.colorize('Last Updated:', 'bold')} {data['timestamp']}")
+        print(f"{self.colorize('=' * 60, 'bold')}\n")
+    
     def run(self, args):
         """Main CLI runner"""
         parser = argparse.ArgumentParser(
@@ -485,6 +616,26 @@ Examples:
         # Handle chart display
         if parsed_args.chart:
             self.display_chart(parsed_args.symbol, parsed_args.period, parsed_args.type)
+            return
+        
+        # Check if symbol is a portfolio
+        if parsed_args.symbol.lower() in self.portfolios:
+            # Get portfolio data
+            data = self.get_portfolio_data(parsed_args.symbol)
+            
+            if not data:
+                print(f"Could not fetch portfolio data for: {parsed_args.symbol}")
+                print("Please check the portfolio name and try again.")
+                sys.exit(1)
+            
+            # Display results
+            if parsed_args.json:
+                # Remove timestamp for JSON output
+                json_data = data.copy()
+                del json_data['timestamp']
+                print(json.dumps(json_data, indent=2))
+            else:
+                self.display_portfolio_info(data)
             return
         
         # Get stock data

@@ -47,6 +47,49 @@ The install script offers two installation modes:
 
 The script will prompt you to choose between these modes during installation.
 
+### Troubleshooting Installation Issues
+
+#### Why do some users need to run `source ~/.zshrc`?
+
+The installation creates a symlink to make the `stk` command globally available. Here's why some users encounter issues:
+
+**Common Problems:**
+- **PATH not set**: The symlink directory might not be in your PATH
+- **Different shells**: You might be using zsh instead of bash
+- **Permission issues**: `/usr/local/bin` requires admin privileges
+- **Custom configurations**: Your shell might have custom PATH settings
+
+**Solutions:**
+1. **Restart your terminal** - This reloads your shell configuration
+2. **Source your config file**:
+   ```bash
+   # For zsh users
+   source ~/.zshrc
+   
+   # For bash users  
+   source ~/.bashrc
+   ```
+3. **Run directly**: `python3 stockCLI.py` (always works)
+
+**What the improved installer does:**
+- Detects your shell automatically (zsh/bash)
+- Uses `~/.local/bin` when possible (no sudo needed)
+- Adds the directory to your PATH automatically
+- Provides clear instructions for your specific setup
+
+#### If the `stk` command still doesn't work:
+
+```bash
+# Option 1: Run directly
+python3 stockCLI.py NVDA
+
+# Option 2: Use the full path
+~/.local/bin/stk NVDA
+
+# Option 3: Add to PATH manually
+export PATH="$HOME/.local/bin:$PATH"
+```
+
 ## Usage
 
 ```sh

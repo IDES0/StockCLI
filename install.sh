@@ -16,6 +16,24 @@ if ! command -v pip3 &> /dev/null; then
     exit 1
 fi
 
+# Detect shell and configuration file
+detect_shell_config() {
+    if [ -n "$ZSH_VERSION" ]; then
+        echo "~/.zshrc"
+    elif [ -n "$BASH_VERSION" ]; then
+        echo "~/.bashrc"
+    else
+        # Default fallback
+        echo "~/.bashrc"
+    fi
+}
+
+# Check if a directory is in PATH
+is_in_path() {
+    local dir="$1"
+    echo "$PATH" | tr ':' '\n' | grep -q "^$dir$"
+}
+
 # Install dependencies from requirements.txt
 echo "📦 Installing dependencies..."
 if [ -f "requirements.txt" ]; then
@@ -59,14 +77,45 @@ else
     echo "📦 Installing Stock CLI in development mode..."
     pip3 install -e .
     
-    # Create a symlink to make it globally accessible
-    if [ ! -f /usr/local/bin/stk ]; then
-        echo "🔗 Creating global symlink..."
-        # Create /usr/local/bin if it doesn't exist
-        sudo mkdir -p /usr/local/bin
-        sudo ln -sf "$(pwd)/stockCLI.py" /usr/local/bin/stk
-        sudo chmod +x /usr/local/bin/stk
+    # Determine the best location for the symlink
+    local_bin="$HOME/.local/bin"
+    usr_local_bin="/usr/local/bin"
+    
+    # Check if ~/.local/bin exists and is in PATH
+    if [ -d "$local_bin" ] && is_in_path "$local_bin"; then
+        symlink_dir="$local_bin"
+        echo "🔗 Using ~/.local/bin for symlink (already in PATH)"
+    elif [ -w "$usr_local_bin" ] && is_in_path "$usr_local_bin"; then
+        symlink_dir="$usr_local_bin"
+        echo "🔗 Using /usr/local/bin for symlink (already in PATH)"
+    else
+        # Create ~/.local/bin and add to PATH
+        symlink_dir="$local_bin"
+        mkdir -p "$local_bin"
+        echo "🔗 Creating ~/.local/bin and adding to PATH"
+        
+        # Detect shell config file
+        shell_config=$(detect_shell_config)
+        config_file="$HOME/.$(basename "$shell_config" | sed 's/^\.//')"
+        
+        # Add to PATH if not already there
+        if ! is_in_path "$local_bin"; then
+            echo "" >> "$config_file"
+            echo "# Stock CLI PATH addition" >> "$config_file"
+            echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$config_file"
+            echo "✅ Added ~/.local/bin to PATH in $config_file"
+            echo "🔄 Please restart your terminal or run: source $config_file"
+        fi
     fi
+    
+    # Create the symlink
+    symlink_path="$symlink_dir/stk"
+    if [ -L "$symlink_path" ]; then
+        rm "$symlink_path"
+    fi
+    
+    ln -sf "$(pwd)/stockCLI.py" "$symlink_path"
+    chmod +x "$symlink_path"
     
     echo "✅ Development installation complete!"
     echo ""
@@ -88,7 +137,15 @@ else
     echo "  --period 1mo      # Time period (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max)"
     echo "  --type line       # Chart type (line, candlestick, volume)"
     echo ""
-    echo "If the 'stk' command doesn't work immediately, try:"
-    echo "  1. Restart your terminal"
-    echo "  2. Or run: source ~/.bashrc (or ~/.zshrc)"
+    
+    # Check if the command is immediately available
+    if command -v stk &> /dev/null; then
+        echo "✅ The 'stk' command is now available!"
+    else
+        echo "⚠️  The 'stk' command might not be immediately available."
+        echo "   Try one of these solutions:"
+        echo "   1. Restart your terminal"
+        echo "   2. Run: source $config_file"
+        echo "   3. Or run the script directly: python3 stockCLI.py"
+    fi
 fi 
