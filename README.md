@@ -10,13 +10,6 @@ A simple terminal application to check real-time stock prices, view historical c
 - JSON output for scripting
 - Custom field selection and full metrics display
 
-## Quick Install
-```bash
-curl -sSL https://raw.githubusercontent.com/IDES0/StockCLI/main/install.sh | bash
-```
-
-This gives users the fastest way to get started with just one command!
-
 ## Installation
 
 1. Clone the repository:
