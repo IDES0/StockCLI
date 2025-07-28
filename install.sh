@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Stock CLI Installation Script
 
 echo "🚀 Installing Stock CLI..."
