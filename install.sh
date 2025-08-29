@@ -135,4 +135,4 @@ else
         echo "   2. Run: source $ZSH_CONFIG_FILE"
         echo "   3. Or run the script directly: python3 stockCLI.py"
     fi
-fi
+fi 
